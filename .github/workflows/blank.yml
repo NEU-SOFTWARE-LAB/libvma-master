@@ -1,0 +1,66 @@
+name: Build and Test C++ on RISC-V
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 检出代码
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # 安装依赖
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ wget make pkg-config autoconf dh-autoreconf automake
+
+    # 安装 RISC-V 工具链
+    - name: Install RISC-V toolchain
+      run: |
+        sudo apt-get install -y gcc-riscv64-linux-gnu qemu-user g++-riscv64-linux-gnu libc6-dev-riscv64-cross
+        
+    # 检查并使用 CMake 构建项目
+    - name: Build project with CMake
+      run: |
+        if [ -f CMakeLists.txt ]; then
+          mkdir build
+          cd build
+          cmake -DTOOLCHAIN_PREFIX=riscv64-linux-gnu- -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++ -DARCH=riscv64 ..
+          make
+        fi
+      working-directory: ${{ github.workspace }}
+
+    # 检查并使用 Make 构建项目
+    - name: Build project with Make
+      run: |
+        if [ -f Makefile ]; then
+          make
+        fi
+      working-directory: ${{ github.workspace }}
+
+    # 检查并使用 autoconf 构建项目
+    - name: Build project with autoconf
+      run: |
+        if [ -f configure.ac ]; then
+          autoreconf -i
+          ./configure --host=riscv64-linux-gnu
+          make
+        fi
+      working-directory: ${{ github.workspace }}
+
+    # 运行程序（假设已经有模拟器或者环境来执行 RISC-V 程序）
+    - name: Test RISC-V program
+      run: |
+        # 使用 QEMU 模拟器来运行 RISC-V 程序
+        qemu-riscv64 -L /usr/riscv64-linux-gnu ./build/riscv_test
+      working-directory: ${{ github.workspace }}
